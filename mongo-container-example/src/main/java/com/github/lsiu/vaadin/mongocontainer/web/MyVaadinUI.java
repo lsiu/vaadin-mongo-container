@@ -1,4 +1,4 @@
-package org.mongo.container.testweb;
+package com.github.lsiu.vaadin.mongocontainer.web;
 
 import java.net.UnknownHostException;
 
@@ -34,8 +34,8 @@ public class MyVaadinUI extends UI
     
     public MyVaadinUI() throws UnknownHostException {
     	MongoClient client = new MongoClient();
-    	DB pcat = client.getDB("enron");
-    	collection = pcat.getCollection("messages");
+    	DB pcat = client.getDB("lsiu");
+    	collection = pcat.getCollection("restaurants");
     }
 
     @Override

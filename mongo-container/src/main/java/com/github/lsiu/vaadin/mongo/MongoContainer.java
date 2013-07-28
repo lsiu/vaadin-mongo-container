@@ -2,9 +2,7 @@ package com.github.lsiu.vaadin.mongo;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
@@ -72,8 +70,8 @@ public class MongoContainer extends AbstractContainer implements Container.Order
 	public Class<?> getType(Object propertyId) {
 		String key = String.valueOf(propertyId);
 		DBObject object = collection.findOne(new BasicDBObject(key, new BasicDBObject("$exists", true)));
-		Class<?> clazz = object.get(String.valueOf(propertyId)).getClass();
-		return clazz;
+		Object field = object.get(String.valueOf(propertyId));
+		return field == null? Object.class : field.getClass();
 	}
 
 	@Override
