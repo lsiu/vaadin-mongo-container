@@ -51,11 +51,11 @@ public class MongoContainer extends AbstractContainer implements
 		if (object != null) {
 			MongoCacheValue value = (MongoCacheValue)object;
 			if (System.currentTimeMillis() - value.retrieveTs < timeToLive) {
-				logger.debug("getItem: {} cache hit!", itemId);
+				logger.trace("getItem: {} cache hit!", itemId);
 				return (MongoItem)value.value;
 			}
 		}
-		logger.debug("getItem: {} cache missed!");
+		logger.trace("getItem: {} cache missed!");
 		DBObject dbObject = collection.findOne(new BasicDBObject(idField,
 				itemId));
 		return new MongoItem(dbObject);
@@ -69,7 +69,7 @@ public class MongoContainer extends AbstractContainer implements
 
 	@Override
 	public Collection<?> getItemIds() {
-		logger.debug("getItemIds");
+		logger.trace("getItemIds");
 		throw new UnsupportedOperationException("This is an expensive call and is deprecated in Vaadin. See https://vaadin.com/forum#!/thread/19709");
 //		BasicDBObject filter = null;
 //		if (idField.equalsIgnoreCase("_id")) {
@@ -106,14 +106,14 @@ public class MongoContainer extends AbstractContainer implements
 
 	@Override
 	public int size() {
-		logger.debug("size");
+		logger.trace("size");
 		long count = collection.getCount();
 		return count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
 	}
 
 	@Override
 	public boolean containsId(Object itemId) {
-		logger.debug("containsId: {}", itemId);
+		logger.trace("containsId: {}", itemId);
 		return collection.findOne(new BasicDBObject(idField, itemId)) == null ? false
 				: true;
 	}
@@ -160,14 +160,14 @@ public class MongoContainer extends AbstractContainer implements
 						key = itr.next();
 						MongoCacheValue value = cacheMap.get(key);
 						if (value != null && System.currentTimeMillis() - value.retrieveTs < timeToLive) {
-							logger.debug("nextItemId {} cache hit!", itemId);
+							logger.trace("nextItemId {} cache hit!", itemId);
 							return key;
 						}
 					}
 				}
 			}
 		}
-		logger.debug("nextItemId {} cache missed!", itemId);
+		logger.trace("nextItemId {} cache missed!", itemId);
 		DBCursor cur = collection
 				.find(new BasicDBObject(this.idField, new BasicDBObject("$gte",
 						itemId))).sort(sortField).limit(pageSize + 1);
@@ -197,7 +197,7 @@ public class MongoContainer extends AbstractContainer implements
 
 	@Override
 	public Object prevItemId(Object itemId) {
-		logger.debug("prevItemId {}", itemId);
+		logger.trace("prevItemId {}", itemId);
 		BasicDBObject negatedSortedField = new BasicDBObject();
 		for (String key : sortField.keySet()) {
 			int asc = (int) sortField.get(key);
@@ -223,14 +223,14 @@ public class MongoContainer extends AbstractContainer implements
 
 	@Override
 	public Object firstItemId() {
-		logger.debug("firstItemId");
+		logger.trace("firstItemId");
 		DBCursor cursor = collection.find().sort(sortField).limit(1);
 		return cursor.hasNext() ? cursor.next().get(idField) : null;
 	}
 
 	@Override
 	public Object lastItemId() {
-		logger.debug("isLastItem");
+		logger.trace("isLastItem");
 		long count = collection.count();
 		if (count > Integer.MAX_VALUE) {
 			throw new IllegalStateException(
@@ -245,7 +245,7 @@ public class MongoContainer extends AbstractContainer implements
 
 	@Override
 	public boolean isFirstId(Object itemId) {
-		logger.debug("isFirstId {}", itemId);
+		logger.trace("isFirstId {}", itemId);
 		if (itemId == null)
 			return false;
 		DBCursor cursor = collection.find().limit(1).sort(sortField);
@@ -259,15 +259,15 @@ public class MongoContainer extends AbstractContainer implements
 
 	@Override
 	public boolean isLastId(Object itemId) {
-		logger.debug("isLastId {}", itemId);
+		logger.trace("isLastId {}", itemId);
 		long retrieveTs = lastIdCache.retrieveTs;
 		Object cachedLastId = lastIdCache.value;
 		if ((System.currentTimeMillis() - retrieveTs) < timeToLive
 				&& cachedLastId != null) {
-			logger.debug("isLastId cache hit!");
+			logger.trace("isLastId cache hit!");
 			return cachedLastId.equals(itemId);
 		}
-		logger.debug("isLastId cache missed!");
+		logger.trace("isLastId cache missed!");
 		long count = collection.count();
 		if (count > Integer.MAX_VALUE) {
 			throw new IllegalStateException(
