@@ -34,7 +34,7 @@ public class MyVaadinUI extends UI
     
     public MyVaadinUI() throws UnknownHostException {
     	MongoClient client = new MongoClient();
-    	DB pcat = client.getDB("lsiu");
+    	DB pcat = client.getDB("test");
     	collection = pcat.getCollection("restaurants");
     }
 

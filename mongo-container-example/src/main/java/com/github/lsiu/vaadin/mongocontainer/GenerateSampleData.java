@@ -35,7 +35,7 @@ public class GenerateSampleData {
 	public void run() {
 		try {
 			client = new MongoClient();
-			db = client.getDB("lsiu");
+			db = client.getDB("test");
 			
 			convertXmlDataToJson();
 		} catch (IOException | ParserConfigurationException | SAXException e) {
