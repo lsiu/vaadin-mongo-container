@@ -1,14 +1,19 @@
 package com.github.lsiu.vaadin.mongo;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.bson.NewBSONDecoder;
+import javax.sound.sampled.Port;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,14 +99,28 @@ public class MongoContainer extends AbstractContainer implements
 		Item item = getItem(itemId);
 		return item.getItemProperty(propertyId);
 	}
+	
+	private long typeCacheTTL = 60 * 1000;
+	private Map<String, Class<?>> typeCache = Collections.synchronizedMap(new HashMap<String, Class<?>>());
+	private long typeRetrieveTs;
 
 	@Override
 	public Class<?> getType(Object propertyId) {
-		String key = String.valueOf(propertyId);
-		DBObject object = collection.findOne(new BasicDBObject(key,
-				new BasicDBObject("$exists", true)));
-		Object field = object.get(String.valueOf(propertyId));
-		return field == null ? Object.class : field.getClass();
+		if (System.currentTimeMillis() - typeRetrieveTs < typeCacheTTL) {
+			logger.trace("getType {} cache hit!", propertyId);
+			return typeCache.get(propertyId);
+		}
+		logger.trace("getType {} cache missed!", propertyId);
+		
+		DBObject object = collection.findOne();
+		typeCache.clear();
+		typeRetrieveTs = System.currentTimeMillis();
+		for(String key: object.keySet()) {
+			Object value = object.get(key);
+			Class<?> clazz = value == null ? Object.class : value.getClass();
+			typeCache.put(key, clazz);
+		}
+		return typeCache.get(propertyId);
 	}
 
 	@Override
@@ -316,12 +335,23 @@ public class MongoContainer extends AbstractContainer implements
 			}
 		}
 	}
+	
+	private long indexPropertyIdsTTL = 60 * 1000; // 1 minute
+	private long indexPropertyIdsRetrieveTs = 0;
+	private List<Object> indexedPropertyIds = Collections.synchronizedList(new ArrayList<>());
 
 	@Override
 	public Collection<?> getSortableContainerPropertyIds() {
+		if (System.currentTimeMillis() - indexPropertyIdsRetrieveTs < indexPropertyIdsTTL) {
+			logger.trace("getSortableContainerPropertyIds cache hit!");
+			return indexedPropertyIds;
+		}
+		logger.trace("getSortableContainerPropertyIds cache missed!");
+		indexedPropertyIds.clear();
 		List<DBObject> indexes = collection.getIndexInfo();
-		List<Object> indexedPropertyIds = new ArrayList<>();
+		indexPropertyIdsRetrieveTs = System.currentTimeMillis();
 		for (DBObject i : indexes) {
+			// will only allow sorting on property with index
 			DBObject dbObject = (DBObject) i.get("key");
 			Object key = dbObject.keySet().iterator().next();
 			indexedPropertyIds.add(key);
