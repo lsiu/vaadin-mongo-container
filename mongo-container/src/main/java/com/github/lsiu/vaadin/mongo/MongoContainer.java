@@ -25,15 +25,16 @@ import com.vaadin.data.util.AbstractContainer;
 @SuppressWarnings("serial")
 public class MongoContainer extends AbstractContainer implements
 		Container.Ordered, Container.Sortable {
-	
-	private static final Logger logger = LoggerFactory.getLogger(MongoContainer.class);
+
+	private static final Logger logger = LoggerFactory
+			.getLogger(MongoContainer.class);
 
 	private DBCollection collection;
 
 	private String idField;
 
 	private long timeToLive = 1000;
-	
+
 	private int pageSize = 25;
 
 	private SortedMap<Object, MongoCacheValue> cacheMap = Collections
@@ -50,10 +51,10 @@ public class MongoContainer extends AbstractContainer implements
 	public Item getItem(Object itemId) {
 		Object object = cacheMap.get(itemId);
 		if (object != null) {
-			MongoCacheValue value = (MongoCacheValue)object;
+			MongoCacheValue value = (MongoCacheValue) object;
 			if (System.currentTimeMillis() - value.retrieveTs < timeToLive) {
 				logger.trace("getItem: {} cache hit!", itemId);
-				return (MongoItem)value.value;
+				return (MongoItem) value.value;
 			}
 		}
 		logger.trace("getItem: {} cache missed!");
@@ -69,35 +70,15 @@ public class MongoContainer extends AbstractContainer implements
 	}
 
 	@Override
-	public Collection<?> getItemIds() {
-		logger.trace("getItemIds");
-		throw new UnsupportedOperationException("This is an expensive call and is deprecated in Vaadin. See https://vaadin.com/forum#!/thread/19709");
-//		BasicDBObject filter = null;
-//		if (idField.equalsIgnoreCase("_id")) {
-//			filter = new BasicDBObject("_id", 1);
-//		} else {
-//			filter = new BasicDBObject("_id", 0);
-//			filter.put(idField, 1);
-//		}
-//
-//		List<DBObject> list = collection.find(new BasicDBObject(), filter)
-//				.toArray();
-//		List<Object> ids = new ArrayList<>();
-//		for (int i = 0; i < list.size(); i++) {
-//			ids.add(list.get(i).get(idField));
-//		}
-//		return ids;
-	}
-
-	@Override
 	@SuppressWarnings("rawtypes")
 	public Property getContainerProperty(Object itemId, Object propertyId) {
 		Item item = getItem(itemId);
 		return item.getItemProperty(propertyId);
 	}
-	
+
 	private long typeCacheTTL = 60 * 1000;
-	private Map<String, Class<?>> typeCache = Collections.synchronizedMap(new HashMap<String, Class<?>>());
+	private Map<String, Class<?>> typeCache = Collections
+			.synchronizedMap(new HashMap<String, Class<?>>());
 	private long typeRetrieveTs;
 
 	@Override
@@ -107,11 +88,11 @@ public class MongoContainer extends AbstractContainer implements
 			return typeCache.get(propertyId);
 		}
 		logger.trace("getType {} cache missed!", propertyId);
-		
+
 		DBObject object = collection.findOne();
 		typeCache.clear();
 		typeRetrieveTs = System.currentTimeMillis();
-		for(String key: object.keySet()) {
+		for (String key : object.keySet()) {
 			Object value = object.get(key);
 			Class<?> clazz = value == null ? Object.class : value.getClass();
 			typeCache.put(key, clazz);
@@ -134,37 +115,8 @@ public class MongoContainer extends AbstractContainer implements
 	}
 
 	@Override
-	public Item addItem(Object itemId) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public Object addItem() throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	public boolean removeItem(Object itemId)
-			throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	public boolean addContainerProperty(Object propertyId, Class<?> type,
-			Object defaultValue) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	public boolean removeContainerProperty(Object propertyId)
-			throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	public boolean removeAllItems() throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public Object nextItemId(Object itemId) {
-		
+
 		SortedMap<Object, MongoCacheValue> subMap = cacheMap.tailMap(itemId);
 		if (subMap != null) {
 			if (subMap.keySet().isEmpty() == false) {
@@ -174,7 +126,9 @@ public class MongoContainer extends AbstractContainer implements
 					if (itr.hasNext()) {
 						key = itr.next();
 						MongoCacheValue value = cacheMap.get(key);
-						if (value != null && System.currentTimeMillis() - value.retrieveTs < timeToLive) {
+						if (value != null
+								&& System.currentTimeMillis()
+										- value.retrieveTs < timeToLive) {
 							logger.trace("nextItemId {} cache hit!", itemId);
 							return key;
 						}
@@ -186,19 +140,19 @@ public class MongoContainer extends AbstractContainer implements
 		DBCursor cur = collection
 				.find(new BasicDBObject(this.idField, new BasicDBObject("$gte",
 						itemId))).sort(sortField).limit(pageSize + 1);
-		
+
 		long retrieveTs = System.currentTimeMillis();
-		while(cur.hasNext()) {
+		while (cur.hasNext()) {
 			DBObject dbObject = cur.next();
 			Object key = dbObject.get(idField);
-			
+
 			MongoCacheValue value = new MongoCacheValue();
 			value.retrieveTs = retrieveTs;
 			value.value = new MongoItem(dbObject);
-			
+
 			cacheMap.put(key, value);
 		}
-		
+
 		subMap = cacheMap.tailMap(itemId);
 		Iterator<Object> itr = subMap.keySet().iterator();
 		itr.next(); // this is the actual doc with itemId. We need the next one.
@@ -302,19 +256,6 @@ public class MongoContainer extends AbstractContainer implements
 		}
 		return false;
 	}
-
-	@Override
-	public Object addItemAfter(Object previousItemId)
-			throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public Item addItemAfter(Object previousItemId, Object newItemId)
-			throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
-
 	private BasicDBObject sortField = new BasicDBObject("_id", 1);
 
 	@Override
@@ -331,10 +272,11 @@ public class MongoContainer extends AbstractContainer implements
 			}
 		}
 	}
-	
+
 	private long indexPropertyIdsTTL = 60 * 1000; // 1 minute
 	private long indexPropertyIdsRetrieveTs = 0;
-	private List<Object> indexedPropertyIds = Collections.synchronizedList(new ArrayList<>());
+	private List<Object> indexedPropertyIds = Collections
+			.synchronizedList(new ArrayList<>());
 
 	@Override
 	public Collection<?> getSortableContainerPropertyIds() {
@@ -353,5 +295,60 @@ public class MongoContainer extends AbstractContainer implements
 			indexedPropertyIds.add(key);
 		}
 		return indexedPropertyIds;
+	}
+	
+	// -- not yet implemented
+
+
+	@Override
+	public Item addItem(Object itemId) throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Object addItem() throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean removeItem(Object itemId)
+			throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean addContainerProperty(Object propertyId, Class<?> type,
+			Object defaultValue) throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean removeContainerProperty(Object propertyId)
+			throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean removeAllItems() throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Object addItemAfter(Object previousItemId)
+			throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Item addItemAfter(Object previousItemId, Object newItemId)
+			throws UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+	
+	/**
+	 * Expensive call which is hardly used. See
+	 * https://vaadin.com/forum#!/thread/19709
+	 */
+	@Override
+	public Collection<?> getItemIds() {
+		logger.trace("getItemIds");
+		throw new UnsupportedOperationException(
+				"This is an expensive call and is deprecated in Vaadin. See https://vaadin.com/forum#!/thread/19709");
 	}
 }
