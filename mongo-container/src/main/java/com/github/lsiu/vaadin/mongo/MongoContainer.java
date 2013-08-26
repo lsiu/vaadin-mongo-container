@@ -37,10 +37,8 @@ public class MongoContainer extends AbstractContainer implements
 
 	private int pageSize = 25;
 
-	private SortedMap<Object, MongoCacheValue> cacheMap = Collections
-			.synchronizedSortedMap(new TreeMap<Object, MongoCacheValue>());
-
-	private MongoCacheValue lastIdCache = new MongoCacheValue();
+	private SortedMap<Object, MongoCacheValue<MongoItem>> cacheMap = Collections
+			.synchronizedSortedMap(new TreeMap<Object, MongoCacheValue<MongoItem>>());
 
 	public MongoContainer(DBCollection collection, String idField) {
 		this.collection = collection;
@@ -49,12 +47,11 @@ public class MongoContainer extends AbstractContainer implements
 
 	@Override
 	public Item getItem(Object itemId) {
-		Object object = cacheMap.get(itemId);
-		if (object != null) {
-			MongoCacheValue value = (MongoCacheValue) object;
-			if (System.currentTimeMillis() - value.retrieveTs < timeToLive) {
+		MongoCacheValue<MongoItem> value = cacheMap.get(itemId);
+		if (value != null) {
+			if (System.currentTimeMillis() - value.getValueSetTimestamp() < timeToLive) {
 				logger.trace("getItem: {} cache hit!", itemId);
-				return (MongoItem) value.value;
+				return (MongoItem) value.getValue();
 			}
 		}
 		logger.trace("getItem: {} cache missed!");
@@ -117,7 +114,7 @@ public class MongoContainer extends AbstractContainer implements
 	@Override
 	public Object nextItemId(Object itemId) {
 
-		SortedMap<Object, MongoCacheValue> subMap = cacheMap.tailMap(itemId);
+		SortedMap<Object, MongoCacheValue<MongoItem>> subMap = cacheMap.tailMap(itemId);
 		if (subMap != null) {
 			if (subMap.keySet().isEmpty() == false) {
 				Iterator<Object> itr = subMap.keySet().iterator();
@@ -125,10 +122,10 @@ public class MongoContainer extends AbstractContainer implements
 					Object key = itr.next(); // this is the current itemId
 					if (itr.hasNext()) {
 						key = itr.next();
-						MongoCacheValue value = cacheMap.get(key);
+						MongoCacheValue<MongoItem> value = cacheMap.get(key);
 						if (value != null
 								&& System.currentTimeMillis()
-										- value.retrieveTs < timeToLive) {
+										- value.getValueSetTimestamp() < timeToLive) {
 							logger.trace("nextItemId {} cache hit!", itemId);
 							return key;
 						}
@@ -141,14 +138,12 @@ public class MongoContainer extends AbstractContainer implements
 				.find(new BasicDBObject(this.idField, new BasicDBObject("$gte",
 						itemId))).sort(sortField).limit(pageSize + 1);
 
-		long retrieveTs = System.currentTimeMillis();
 		while (cur.hasNext()) {
 			DBObject dbObject = cur.next();
 			Object key = dbObject.get(idField);
 
-			MongoCacheValue value = new MongoCacheValue();
-			value.retrieveTs = retrieveTs;
-			value.value = new MongoItem(dbObject);
+			MongoCacheValue<MongoItem> value = new MongoCacheValue<>();
+			value.setValue(new MongoItem(dbObject));
 
 			cacheMap.put(key, value);
 		}
@@ -225,12 +220,14 @@ public class MongoContainer extends AbstractContainer implements
 		}
 		return false;
 	}
+	
+	private MongoCacheValue<Object> lastIdCache = new MongoCacheValue<>();
 
 	@Override
 	public boolean isLastId(Object itemId) {
 		logger.trace("isLastId {}", itemId);
-		long retrieveTs = lastIdCache.retrieveTs;
-		Object cachedLastId = lastIdCache.value;
+		long retrieveTs = lastIdCache.getValueSetTimestamp();
+		Object cachedLastId = lastIdCache.getValue();
 		if ((System.currentTimeMillis() - retrieveTs) < timeToLive
 				&& cachedLastId != null) {
 			logger.trace("isLastId cache hit!");
@@ -250,8 +247,7 @@ public class MongoContainer extends AbstractContainer implements
 		if (cursor.hasNext()) {
 			dbObject = cursor.next();
 			Object lastId = dbObject.get(idField);
-			lastIdCache.value = lastId;
-			lastIdCache.retrieveTs = System.currentTimeMillis();
+			lastIdCache.setValue(lastId);
 			return itemId.equals(lastId);
 		}
 		return false;
